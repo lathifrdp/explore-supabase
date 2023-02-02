@@ -1,12 +1,10 @@
-import 'dart:async';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_quickstart/model/pengguna.dart';
 import 'package:supabase_quickstart/utils/constants.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  const LoginPage({Key? key}) : super(key: key);
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -14,53 +12,52 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
-  bool _redirecting = false;
-  late final TextEditingController _emailController;
-  late final StreamSubscription<AuthState> _authStateSubscription;
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  List<Pengguna> listPengguna = <Pengguna>[];
 
   Future<void> _signIn() async {
     setState(() {
       _isLoading = true;
     });
     try {
-      await supabase.auth.signInWithOtp(
-        email: _emailController.text,
-        emailRedirectTo:
-            kIsWeb ? null : 'io.supabase.flutterquickstart://login-callback/',
-      );
-      if (mounted) {
-        context.showSnackBar(message: 'Check your email for login link!');
-        _emailController.clear();
+      // await supabase.auth.signInWithPassword(
+      //   email: _emailController.text,
+      //   password: _passwordController.text,
+      // );
+      _emailController.text = "tes3695@gmail.com";
+      _passwordController.text = "tes12345";
+      List data = await supabase
+          .from('pengguna')
+          .select('id, username, password, email, created_at');
+      listPengguna = data.map((e) => Pengguna.fromJson(e)).toList();
+
+      for (var i in listPengguna) {
+        if (i.email == _emailController.text &&
+            i.password == _passwordController.text) {
+          if (mounted) {
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/chat', (route) => false);
+          }
+        }
       }
     } on AuthException catch (error) {
       context.showErrorSnackBar(message: error.message);
-    } catch (error) {
-      context.showErrorSnackBar(message: 'Unexpected error occurred');
+    } catch (_) {
+      context.showErrorSnackBar(message: "Email atau password salah");
+      //context.showErrorSnackBar(message: unexpectedErrorMessage);
     }
-
-    setState(() {
-      _isLoading = false;
-    });
-  }
-
-  @override
-  void initState() {
-    _emailController = TextEditingController();
-    _authStateSubscription = supabase.auth.onAuthStateChange.listen((data) {
-      if (_redirecting) return;
-      final session = data.session;
-      if (session != null) {
-        _redirecting = true;
-        Navigator.of(context).pushReplacementNamed('/account');
-      }
-    });
-    super.initState();
+    if (mounted) {
+      setState(() {
+        _isLoading = true;
+      });
+    }
   }
 
   @override
   void dispose() {
     _emailController.dispose();
-    _authStateSubscription.cancel();
+    _passwordController.dispose();
     super.dispose();
   }
 
@@ -69,18 +66,23 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Sign In')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        padding: formPadding,
         children: [
-          const Text('Sign in via the magic link with your email below'),
-          const SizedBox(height: 18),
           TextFormField(
             controller: _emailController,
             decoration: const InputDecoration(labelText: 'Email'),
+            keyboardType: TextInputType.emailAddress,
           ),
-          const SizedBox(height: 18),
+          formSpacer,
+          TextFormField(
+            controller: _passwordController,
+            decoration: const InputDecoration(labelText: 'Password'),
+            obscureText: true,
+          ),
+          formSpacer,
           ElevatedButton(
             onPressed: _isLoading ? null : _signIn,
-            child: Text(_isLoading ? 'Loading' : 'Send Magic Link'),
+            child: const Text('Login'),
           ),
         ],
       ),
